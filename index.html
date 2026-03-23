@@ -34,8 +34,8 @@ body{font-family:'Zen Kaku Gothic New',sans-serif;background:var(--cream);color:
 .nav-tab.active{background:var(--cream);color:var(--enja);font-weight:700;}
 
 /* VIEWS */
-.view{display:none;padding:16px;min-height:calc(100vh - 110px);padding-bottom:calc(80px + env(safe-area-inset-bottom,0px));}
-.view.active{display:block;}
+.view{display:none;padding:16px;padding-bottom:calc(80px + env(safe-area-inset-bottom,0px));min-height:calc(100vh - 110px);}
+.view.active{display:block !important;}
 
 /* DAY NAV */
 .day-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:var(--cream-dark);border-radius:var(--radius);padding:10px 16px;border:1px solid var(--border);}
@@ -1317,10 +1317,24 @@ function applySettings(){
 // INIT
 // ============================================================
 function init(){
-  loadData();runCarryOver();applySettings();renderDay();
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){runCarryOver();renderDay();}});
+  try {
+    loadData();
+    runCarryOver();
+    applySettings();
+    renderDay();
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden){ try{runCarryOver();renderDay();}catch(e){console.error(e);} }
+    });
+  } catch(e) {
+    console.error('Init error:', e);
+    const c = document.getElementById('dayTodoContainer');
+    if(c) c.innerHTML = '<div style="padding:20px;color:#5c1208;font-size:0.85rem">読み込みエラー: '+e.message+'<br><br><button onclick="location.reload()" style="padding:8px 16px;background:#5c1208;color:white;border:none;border-radius:8px;cursor:pointer">再読み込み</button></div>';
+    // Make day view visible even on error
+    const v = document.getElementById('view-day');
+    if(v) v.classList.add('active');
+  }
 }
-init();
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
