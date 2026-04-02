@@ -594,16 +594,45 @@ function runCarryOver() {
   const today=new Date(); today.setHours(0,0,0,0);
   const todayStr=dateStr(today);
   let changed=false;
+
+  // 完了済みタスクの「根っこID」を収集（元タスク・持ち越し問わず）
+  const completedRootIds = new Set(
+    todos.filter(t => t.done).map(t => t.originalId || t.id)
+  );
+
   todos.forEach(todo => {
-    if (todo.done || todo.isCarryOver) return;
-    const d=parseDate(todo.date);
-    if (!d || d>=today) return;
-    const alreadyCarried=todos.some(t=>t.isCarryOver&&t.originalId===todo.id&&t.date===todayStr);
+    // 完了済みは絶対に持ち越さない
+    if (todo.done) return;
+
+    // このタスクの根っこIDを特定
+    const rootId = todo.originalId || todo.id;
+
+    // 根っこが完了済みなら持ち越さない（完了した瞬間に連鎖を止める）
+    if (completedRootIds.has(rootId)) return;
+
+    const d = parseDate(todo.date);
+    if (!d || d >= today) return;
+
+    // 今日すでに同じ根っこの持ち越しがあれば重複しない
+    const alreadyCarried = todos.some(t =>
+      t.isCarryOver && (t.originalId === rootId) && t.date === todayStr
+    );
     if (!alreadyCarried) {
-      todos.push({...todo,id:genId('td'),date:todayStr,isCarryOver:true,originalId:todo.id,originalDate:todo.date,done:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-      changed=true;
+      todos.push({
+        ...todo,
+        id: genId('td'),
+        date: todayStr,
+        isCarryOver: true,
+        originalId: rootId,
+        originalDate: todo.originalDate || todo.date,
+        done: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      changed = true;
     }
   });
+
   if (changed) saveData();
 }
 
