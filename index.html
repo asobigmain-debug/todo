@@ -595,27 +595,35 @@ function runCarryOver() {
   const todayStr=dateStr(today);
   let changed=false;
 
-  // 完了済みタスクの「根っこID」を収集（元タスク・持ち越し問わず）
+  // ① 完了済みの根っこIDを収集
   const completedRootIds = new Set(
     todos.filter(t => t.done).map(t => t.originalId || t.id)
   );
 
-  todos.forEach(todo => {
-    // 完了済みは絶対に持ち越さない
-    if (todo.done) return;
+  // ② 不要な持ち越しコピーを削除
+  //    「完了済み根っこIDを持つ未完了の持ち越しコピー」は存在してはいけない
+  const before = todos.length;
+  todos = todos.filter(t => {
+    if (!t.isCarryOver) return true;       // 通常タスクは残す
+    if (t.done) return true;               // 完了済み持ち越しはその日の記録として残す
+    const rootId = t.originalId || t.id;
+    return !completedRootIds.has(rootId);  // 完了済み根っこの未完了持ち越しは削除
+  });
+  if (todos.length !== before) changed = true;
 
-    // このタスクの根っこIDを特定
+  // ③ 未完了タスクを今日に持ち越す
+  const snapshot = todos.slice(); // 削除後のリストで判定
+  snapshot.forEach(todo => {
+    if (todo.done) return;                 // 完了済みは持ち越さない
+
     const rootId = todo.originalId || todo.id;
-
-    // 根っこが完了済みなら持ち越さない（完了した瞬間に連鎖を止める）
-    if (completedRootIds.has(rootId)) return;
+    if (completedRootIds.has(rootId)) return; // 根っこが完了済みなら持ち越さない
 
     const d = parseDate(todo.date);
-    if (!d || d >= today) return;
+    if (!d || d >= today) return;          // 今日以降はスキップ
 
-    // 今日すでに同じ根っこの持ち越しがあれば重複しない
     const alreadyCarried = todos.some(t =>
-      t.isCarryOver && (t.originalId === rootId) && t.date === todayStr
+      t.isCarryOver && t.originalId === rootId && t.date === todayStr
     );
     if (!alreadyCarried) {
       todos.push({
